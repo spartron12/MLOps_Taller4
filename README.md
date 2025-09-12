@@ -238,23 +238,30 @@ python -m mlflow server \
 ### 1. Creación del entorno virtual
 ![Inicio del sistema](./Imagenes/imagen1.png)
 
-### 2. Login de Airflow
-![Inicio del sistema](./images/login.jpg)
+### 2. Despliegue entorno virtual
+![Inicio del sistema](./Imagenes/imagen2.png)
 
-### 3. Ejecución Automática del Pipeline - DAG Auto-Activo
-![Inicio del sistema](./images/dag.jpg)
+### 3. Instalación de librerías necesarias para Mlflow
+![Inicio del sistema](./Imagenes/imagen3.png)
 
-## 4. Visualización todos los tasks de Airflow ejecutándose automaticamente
-![Inicio del sistema](./images/orquesta.jpg)
+## 4. Levantamiento de docker compose
+![Inicio del sistema](./Imagenes/imagen5.png)
 
-## 5. Visualización del correcto funcionamiento de la interfaz gráfica de FASTAPI 
-![Inicio del sistema](./images/fastapi.jpg)
+## 5. Levantamiento Mlflow 
+![Inicio del sistema](./Imagenes/imagen6.png)
 
 
-## 6. Predicción usando el modelo generado automáticamente por AirFlow
-![Inicio del sistema](./images/fastapi_prediction.jpg)
+## 6. Ejecución de notebook en jupyter
+![Inicio del sistema](./Imagenes/imagen8.png)
 
-## Funciones Técnicas Implementadas
+## 7. Validación de experimentos creados 
+![Inicio del sistema](./Imagenes/experimentos.png)
+
+## 8. Revisión de accuraccy
+![Inicio del sistema](./Imagenes/Accuracy.png)
+
+## 9. inferencia en FastAPI una vez creado el modelo
+![Inicio del sistema](./Imagenes/Inferencia_fastapi.png)
 
 ### funciones.py - Lógica del Pipeline
 
@@ -358,5 +365,5 @@ La automatización establecida proporciona una base sólida para operaciones de 
 - Sebastian Rodríguez  
 - David Córdova
 
-**Proyecto:** MLOps Taller 3 - Pipeline Automatizado  
+**Proyecto:** MLOps Taller 4 - Mlflow
 **Fecha:** Septiembre 2025
