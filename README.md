@@ -103,11 +103,18 @@ MySQLdb.connect(
 ````
 
 
-### Conexción de FastAPI con Mlflow
+### Conexión de FastAPI con Mlflow
 
 ```yaml
 # Tracking server de MLflow
         mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5005"))
+```
+
+### Despliegue de Mlflow con backend en Postgres
+
+```yaml
+# Conexión Postgres
+--backend-store-uri postgresql://mlflow_user:mlflow_password@localhost:5432/mlflow_db\
 ```
 
 * Genera la conexión directa entre ambos servicios para poder generar la inferencia desde fastAPI tomando los modelos que vayamos desplegando en producción desde Mlflow
