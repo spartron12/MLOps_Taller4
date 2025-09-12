@@ -2,7 +2,7 @@
 
 **Grupo compuesto por Sebastian Rodríguez y David Córdova**
 
-Este proyecto implementa múltiples servicios con el fin de lograr desplegar una instancia de MLFlow, utilizando los siguientes servicios:  MySQL, Jupyter, MiniIO, Postgres y FastAPI
+Este proyecto implementa múltiples servicios con el fin de lograr desplegar una instancia de Mlflow, utilizando los siguientes servicios:  MySQL, Jupyter, MiniIO, Postgres y FastAPI
 
 ## Características Principales
 
@@ -17,91 +17,64 @@ Este proyecto implementa múltiples servicios con el fin de lograr desplegar una
 ## Estructura del Proyecto
 
 ```
-MLOps_Taller3/
-├── dags/
-│   ├── scripts/
-│   │   ├── __pycache__/
-│   │   ├── __init__.py
-│   │   ├── funciones.py
-│   │   └── queries.py
-│   ├── fastapi_ready.txt
-│   ├── fastapi.log
-│   └── orquestador.py
+MLOps_Taller4/
 ├── fastapi/
 │   ├── __pycache__/
 │   ├── Dockerfile
 │   ├── main.py
 │   └── requirements.txt
-├── logs/
-├── models/
-├── plugins/
+├── minio/
+├── Notebooks/
+├── Venv/
 ├── images/
-├── .env
+├── work
 ├── docker-compose.yaml
 └── README.md
+└──Dockerfile
+└──Requirement.txt
+
 ```
 
 ### Descripción de Componentes
 
-- **dags/**:
-  - **orquestador.py**: DAG principal de Airflow que automatiza todo el pipeline de Machine Learning
-  - **scripts/funciones.py**: Funciones principales del pipeline (insert_data,clean, read_data, train_model)
-  - **scripts/queries.py**: Consultas SQL para creación y manipulación de tablas en MySQL
-  - **fastapi_ready.txt**: Archivo de señal para indicar que FastAPI está listo
-  - **fastapi.log**: Logs del servicio FastAPI
 
 - **fastapi/**:
   - **main.py**: Aplicación principal de FastAPI que consume los modelos entrenados
   - **Dockerfile**: Contenerización del servicio API
   - **requirements.txt**: Dependencias específicas para el servicio FastAPI
 
-- **models/**:
-  - Carpeta compartida que almacena los modelos entrenados en formato pickle (.pkl)
-  - Es montada como volumen en todos los contenedores que necesitan acceso a los modelos
-  - Contiene archivos como: `RegresionLogistica.pkl`
-
-- **logs/**: Directorio donde Airflow almacena todos los logs de ejecución de tareas y DAGs
-- **plugins/**: Directorio para plugins personalizados de Airflow (vacío por defecto)
+- **minio/**:
+  - Carpeta compartida que almacena los artefectos creados desde Jupyter y que son visibles en Mlflow
+- **venv/**:
+  - ambiente virtual en donde se instalaron las librerías necesarias para poder desplegar Mlflow
+- **work/**: Directorio donde almacenamos notebooks y que sean visibles cuando se despliegue la instancia de Jupyter
 - **images/**: Carpeta para almacenar capturas de pantalla y evidencias del funcionamiento
-
-- **.env**: 
-  - Archivo de variables de entorno que configura automáticamente las credenciales de Airflow
-  - Elimina la necesidad de configuración manual con credenciales predeterminadas (admin/admin)
 
 - **docker-compose.yaml**:
   - Archivo de orquestación que define y gestiona todos los contenedores del proyecto
-  - Incluye servicios para: Airflow (webserver, scheduler, worker, triggerer), MySQL, Redis, PostgreSQL, FastAPI
-  - Contiene el servicio `dag-auto-trigger` que ejecuta automáticamente el pipeline después del inicio
-
-
+  - Incluye servicios para: Mlflow (minIO, MySQL, Postgres, Jupyter, FastAPI)
 
 ## Automatización Implementada
 
 ### ¿Por qué se automatizó?
 
 **Problema original:**
-- Requería login manual en Airflow (`admin`/`admin`)
-- Necesitaba activar DAGs manualmente
-- Requería trigger manual del pipeline
-- Intervención humana en múltiples pasos
+- Por defecto toda la metadata de Mlflow se almacena en SQLite, de cara a despligues en producción es recomendable usar MySQL o Postgres
+- Se se debe generar adicionalmente una base de datos en donde se puedan almacenar tablas necesarias para los entrenamientos de los modelos
+- Se debe generar una conexión de FastAPI con Mlflow para poder hacer inferencia directamente una vez desplegado el modelo
 
 **Solución automatizada:**
-- Zero-touch deployment - Una sola ejecución automatiza todo
-- Auto-activación de DAGs - Se activan automáticamente al iniciar
-- Auto-trigger del pipeline - Se ejecuta automáticamente una vez
-- Credenciales simplificadas - Admin/admin predeterminado
+- Despliegue de Postgres para almacenar metadata de Mlflow 
+- Despliegue de MySQl para almacenar todas las tablas necesarias
+- Conexión automática con FastAPI para poder hacer inferencia
 
 ### Componentes de Automatización
 
-#### Archivo .env - Configuración Automática
+
 
 ```bash
-# Variables de entorno para automatización
-AIRFLOW_UID=50000
-_AIRFLOW_WWW_USER_USERNAME=admin
-_AIRFLOW_WWW_USER_PASSWORD=admin
-AIRFLOW_PROJ_DIR=.
-```
+# Variables de entorno clave para la conexión de mlflow y fastapi
+- MLFLOW_TRACKING_URI
 
 **Función:** Elimina la necesidad de configuración manual de credenciales.
 
@@ -118,18 +91,11 @@ AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: 30
 AIRFLOW__SCHEDULER__PARSING_PROCESSES: 2
 ```
 
-**Servicio de Auto-Trigger integrado:**
-```yaml
-dag-auto-trigger:
-  command: >
-    bash -c "
-      echo 'Iniciando auto-trigger del DAG...'
-      sleep 120
-      echo 'Activando DAG orquestador...'
-      airflow dags unpause orquestador || echo 'DAG ya está activo'
-      echo 'Disparando ejecución del DAG...'
-      airflow dags trigger orquestador
-      echo 'DAG disparado exitosamente!'
+**Servicio de despligue Mlflow:**
+```python -m mlflow server \
+  --backend-store-uri postgresql://mlflow_user:mlflow_password@localhost:5432/mlflow_db \
+  --default-artifact-root s3://mlflows3/artifacts \
+  --host 0.0.0.0 --port 5005 --serve-artifacts
     "
 ```
 
