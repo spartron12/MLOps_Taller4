@@ -187,6 +187,7 @@ cd MLOps_Taller4
 # Limpiar entorno previo (si existe)
 docker compose down -v
 docker system prune -f
+pkill -f "mlflow server" #Limpia todas las instancias de mflow creadas
 ```
 
 ### Ejecución 
@@ -218,28 +219,7 @@ python -m mlflow server \
 - Se guardan los modelos en Mlflow
 - La API consume los modelos para hacer la inferencia
 
-### Ejecución en Background
 
-```bash
-# Para ejecutar en segundo plano
-docker compose up -d
-
-# Ver logs en tiempo real
-docker compose logs -f dag-auto-trigger
-```
-
-### Verificación Manual del Estado
-
-```bash
-# Verificar que Airflow esté disponible
-curl -f http://localhost:8080/health
-
-# Verificar estado de contenedores
-docker compose ps
-
-# Acceder a la interfaz web
-# http://localhost:8080 (admin/admin)
-```
 
 ## Acceso a Servicios
 
@@ -255,8 +235,8 @@ docker compose ps
 
 ## Ejecución del Proyecto
 
-### 1. Levantamiento de la aplicación
-![Inicio del sistema](./images/compose.jpg)
+### 1. Creación del entorno virtual
+![Inicio del sistema](./Imagenes/imagen1.png)
 
 ### 2. Login de Airflow
 ![Inicio del sistema](./images/login.jpg)
