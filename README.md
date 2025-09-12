@@ -1,18 +1,18 @@
-# MLOps Taller 3 - Pipeline Automatizado con Airflow
+# MLOps Taller 4 - Despliegue de servicio de MLFlow #
 
 **Grupo compuesto por Sebastian Rodríguez y David Córdova**
 
-Este proyecto implementa un pipeline completo de Machine Learning Operations (MLOps) que automatiza desde la limpieza de datos hasta el entrenamiento de modelos y despliegue de API, utilizando Apache Airflow como orquestador principal.
+Este proyecto implementa múltiples servicios con el fin de lograr desplegar una instancia de MLFlow, utilizando los siguientes servicios:  MySQL, Jupyter, MiniIO, Postgres y FastAPI
 
 ## Características Principales
 
-- Pipeline completamente automatizado con ejecución sin intervención manual
-- Orquestación inteligente del flujo de trabajo con Apache Airflow
+- Conexión total entre los servicios
+- Creación de modelos y experimentos por medio de Jupyter y trazabilidad en Mlflow
 - Contenerización completa mediante Docker Compose
 - Base de datos MySQL para almacenamiento persistente
 - API FastAPI para servicio de predicciones en tiempo real
-- Auto-trigger del DAG con activación automática al iniciar
-- Dashboard web de Airflow para monitoreo en tiempo real
+- Despliegue web de MlFlow para validad parametría de los modelos y experimentos desplegados
+- Conexión directa de FastAPI con MLFlow
 
 ## Estructura del Proyecto
 
