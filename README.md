@@ -316,7 +316,305 @@ CREATE TABLE penguins_clean (
 
 connection.commit()
 connection.close()
+
+#Inserta la información cruda 
+
+import palmerpenguins as pp
+from palmerpenguins import load_penguins
+import pandas as pd
+"""
+Función para insertar datos en la tabla MySQL
+"""
+TABLE_NAME = "penguins_raw"
+df = pp.load_penguins()
+
+
+connection = MySQLdb.connect(
+    host="mysql",          # nombre del servicio en docker-compose
+    user="my_app_user",
+    passwd="my_app_pass",  # OJO: aquí se usa 'passwd' en lugar de 'password'
+    db="my_app_db",
+    port=3306
+)
+
+cursor = connection.cursor()
+
+for _, row in df.iterrows():
+    sql = f"""
+    INSERT INTO {TABLE_NAME} 
+    (species, island, bill_length_mm, bill_depth_mm, flipper_length_mm, body_mass_g, sex, year)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+    """
+    values = (
+        row["species"],
+        row["island"],
+        None if pd.isna(row["bill_length_mm"]) else float(row["bill_length_mm"]),
+        None if pd.isna(row["bill_depth_mm"]) else float(row["bill_depth_mm"]),
+        None if pd.isna(row["flipper_length_mm"]) else float(row["flipper_length_mm"]),
+        None if pd.isna(row["body_mass_g"]) else float(row["body_mass_g"]),
+        row["sex"] if pd.notna(row["sex"]) else None,
+        int(row["year"]),
+    )
+    
+    cursor.execute(sql, values)
+
+connection.commit()
+connection.close()
+
+
+#Trae la información desde MySQL
+conn = MySQLdb.connect(
+    host="mysql",          # nombre del servicio en docker-compose
+    user="my_app_user",
+    passwd="my_app_pass",  # OJO: aquí se usa 'passwd' en lugar de 'password'
+    db="my_app_db",
+    port=3306
+)
+
+query = "SELECT * FROM penguins_raw"
+df = pd.read_sql(query, conn)
+
+#Limpia los datos 
+
+from sklearn.preprocessing import OneHotEncoder
+import numpy as np
+
+df[df.isna().any(axis=1)]
+df.dropna(inplace=True)
+categorical_cols = ['sex','island']
+encoder = OneHotEncoder(handle_unknown='ignore')
+x = df.drop(columns=['species'])
+y = df['species']
+x_encoded = encoder.fit_transform(x[categorical_cols])
+X_numeric = x.drop(columns=categorical_cols)
+X_final = np.hstack((X_numeric.values, x_encoded.toarray()))
+
+df_encoded = pd.get_dummies(df, columns=['island','sex'])
+bool_cols = df_encoded.select_dtypes(include='bool').columns
+df_encoded[bool_cols] = df_encoded[bool_cols].astype(int)
+df_encoded.head()
+df_encoded['species'] = df_encoded['species'].apply(lambda x: 
+                        1 if x == 'Adelie' else 
+                        2 if x == 'Chinstrap' else 
+                        3 if x == 'Gentoo' else 
+                        None)
+# Inserta la información limpia en MySQL
+TABLE_NAME = "penguins_clean"
+
+connection = MySQLdb.connect(
+    host="mysql",          # nombre del servicio en docker-compose
+    user="my_app_user",
+    passwd="my_app_pass",  # OJO: aquí se usa 'passwd' en lugar de 'password'
+    db="my_app_db",
+    port=3306
+)
+
+cursor = connection.cursor()
+
+insert_sql = """
+    INSERT INTO penguins_clean (
+        species, bill_length_mm, bill_depth_mm, flipper_length_mm, 
+        body_mass_g, year, island_Biscoe, island_Dream, island_Torgersen, 
+        sex_female, sex_male
+    )
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+"""
+
+# Genera los valores a insertar
+values = [
+    (
+        int(row["species"]),
+        None if pd.isna(row["bill_length_mm"]) else float(row["bill_length_mm"]),
+        None if pd.isna(row["bill_depth_mm"]) else float(row["bill_depth_mm"]),
+        None if pd.isna(row["flipper_length_mm"]) else float(row["flipper_length_mm"]),
+        None if pd.isna(row["body_mass_g"]) else float(row["body_mass_g"]),
+        int(row["year"]),
+        int(row["island_Biscoe"]),
+        int(row["island_Dream"]),
+        int(row["island_Torgersen"]),
+        int(row["sex_female"]),
+        int(row["sex_male"]),
+    )
+    for _, row in df_encoded.iterrows()
+]
+
+# Inserta múltiples filas
+cursor.executemany(insert_sql, values)
+
+# Confirma los cambios
+connection.commit()
+
+# Cierra conexión
+cursor.close()
+connection.close()
+
+#Trae la data limpia para entrenar el modelo
+conn = MySQLdb.connect(
+    host="mysql",          # nombre del servicio en docker-compose
+    user="my_app_user",
+    passwd="my_app_pass",  # OJO: aquí se usa 'passwd' en lugar de 'password'
+    db="my_app_db",
+    port=3306
+)
+
+query = "SELECT * FROM penguins_clean"
+df_limpio = pd.read_sql(query, conn)
+
+#Trae la data limpia para entrenar el modelo
+conn = MySQLdb.connect(
+    host="mysql",          # nombre del servicio en docker-compose
+    user="my_app_user",
+    passwd="my_app_pass",  # OJO: aquí se usa 'passwd' en lugar de 'password'
+    db="my_app_db",
+    port=3306
+)
+
+query = "SELECT * FROM penguins_clean"
+df_limpio = pd.read_sql(query, conn)
+
+import mlflow
+import mlflow.sklearn
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
  
+# Modelos
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, AdaBoostClassifier
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier
+ 
+# ==============================
+# 1. Conectar con tu MLflow server
+# ==============================
+mlflow.set_tracking_uri("http://10.43.100.83:5005")  # Ajusta según tu servidor MLflow
+ 
+# ==============================
+# 2. Preparar dataset
+# ==============================
+df = df_limpio  # tu DataFrame limpio
+X = df.drop("species", axis=1)
+y = df["species"]
+ 
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+ 
+# ==============================
+# 3. Definir modelos y sus hiperparámetros
+# ==============================
+model_params = {
+    "logistic_regression": {
+        "model": LogisticRegression,
+        "params": [
+            {"C": 0.1, "max_iter": 5000, "solver": "lbfgs"},
+            {"C": 1, "max_iter": 5000, "solver": "lbfgs"},
+            {"C": 10, "max_iter": 5000, "solver": "lbfgs"}
+        ]
+    },
+    "random_forest": {
+        "model": RandomForestClassifier,
+        "params": [
+            {"n_estimators": 50, "max_depth": 5, "random_state": 42},
+            {"n_estimators": 100, "max_depth": 10, "random_state": 42},
+            {"n_estimators": 200, "max_depth": None, "random_state": 42},
+        ]
+    },
+    "gradient_boosting": {
+        "model": GradientBoostingClassifier,
+        "params": [
+            {"n_estimators": 50, "learning_rate": 0.1, "max_depth": 3},
+            {"n_estimators": 100, "learning_rate": 0.05, "max_depth": 3},
+            {"n_estimators": 150, "learning_rate": 0.01, "max_depth": 4},
+        ]
+    },
+    "adaboost": {
+        "model": AdaBoostClassifier,
+        "params": [
+            {"n_estimators": 50, "learning_rate": 0.5},
+            {"n_estimators": 100, "learning_rate": 1.0},
+            {"n_estimators": 150, "learning_rate": 1.5},
+        ]
+    },
+    "svc": {
+        "model": SVC,
+        "params": [
+            {"C": 0.1, "kernel": "linear", "probability": True},
+            {"C": 1, "kernel": "rbf", "probability": True},
+            {"C": 10, "kernel": "poly", "probability": True},
+        ]
+    },
+    "knn": {
+        "model": KNeighborsClassifier,
+        "params": [
+            {"n_neighbors": 3, "weights": "uniform"},
+            {"n_neighbors": 5, "weights": "distance"},
+            {"n_neighbors": 7, "weights": "uniform"},
+        ]
+    },
+    "decision_tree": {
+        "model": DecisionTreeClassifier,
+        "params": [
+            {"max_depth": 3, "min_samples_split": 2},
+            {"max_depth": 5, "min_samples_split": 4},
+            {"max_depth": None, "min_samples_split": 2},
+        ]
+    }
+}
+ 
+# ==============================
+# 4. Entrenar y loggear cada experimento por separado
+# ==============================
+for model_name, mp in model_params.items():
+    ModelClass = mp["model"]
+    for i, params in enumerate(mp["params"]):
+        # Crear un experimento único por combinación
+        experiment_name = f"{model_name}_exp_{i+1}"
+        mlflow.set_experiment(experiment_name)  # crea o selecciona el experimento
+ 
+        with mlflow.start_run(run_name=f"{model_name}_run") as run:
+            # Entrenar modelo
+            model = ModelClass(**params)
+            model.fit(X_train, y_train)
+            y_pred = model.predict(X_test)
+            acc = accuracy_score(y_test, y_pred)
+ 
+            # Log de métricas
+            mlflow.log_metric("accuracy", acc)
+ 
+            # Log de hiperparámetros
+            for k, v in params.items():
+                mlflow.log_param(k, v)
+ 
+            # Log del modelo como artifact
+            mlflow.sklearn.log_model(sk_model=model, artifact_path="model")
+ 
+            # Registrar en Model Registry
+            model_uri = f"runs:/{run.info.run_id}/model"
+            mlflow.register_model(model_uri=model_uri, name=f"{model_name}_model")
+ 
+            print(f"{experiment_name} entrenado y logueado con accuracy: {acc}")
+
+#Pasa el modelo a producción
+
+from mlflow.tracking import MlflowClient
+
+# Conexión al server
+mlflow.set_tracking_uri("http://10.43.100.98:5005")
+client = MlflowClient()
+
+# Actualizar a producción
+model_name = "reg_logistica"
+model_version = 1  # la primera versión que acabas de crear
+
+client.transition_model_version_stage(
+    name=model_name,
+    version=model_version,
+    stage="Production",
+    archive_existing_versions=True  # mueve versiones anteriores a Archived
+)
+
+print(f"Modelo {model_name} v{model_version} promovido a Production")
 
 ```
 
@@ -324,15 +622,19 @@ connection.close()
 
 ## Conclusiones
 
-Este proyecto implementa un pipeline MLOps completamente automatizado que:
+Conclusiones
 
-- Elimina intervención manual en el proceso de entrenamiento
-- Proporciona un sistema reproducible y confiable
-- Integra todas las fases del ciclo de vida del modelo
-- Ofrece monitoreo y trazabilidad completa
-- Reduce significativamente el tiempo de despliegue
+La implementación realizada demuestra cómo integrar de manera efectiva distintos servicios (MySQL, Postgres, MinIO, Jupyter, FastAPI y MLflow) en un entorno contenerizado con Docker Compose, logrando un flujo completo de MLOps.
 
-La automatización establecida proporciona una base sólida para operaciones de Machine Learning en producción, minimizando errores humanos y maximizando la eficiencia operacional.
+Se logró establecer un pipeline automatizado que cubre todas las etapas: ingesta de datos, limpieza, entrenamiento, experimentación, registro de modelos, despliegue y consumo en producción.
+
+El uso de MLflow con backend en Postgres y artefactos en MinIO garantiza trazabilidad, persistencia y escalabilidad en comparación con la configuración por defecto en SQLite.
+
+La conexión entre FastAPI y MLflow permite consumir modelos directamente desde el registro, habilitando predicciones en tiempo real y demostrando un caso de uso cercano a un escenario de producción.
+
+El notebook desarrollado constituye un ejemplo reproducible de todo el flujo de trabajo, desde la preparación de la base de datos hasta la promoción de un modelo en producción, lo que refuerza la importancia de la automatización y reproducibilidad en proyectos de ciencia de datos.
+
+En general, este proyecto evidencia la viabilidad y relevancia de aplicar prácticas de MLOps en entornos académicos y profesionales, sirviendo como base para escalar a soluciones más complejas en el futuro.
 
 ---
 
