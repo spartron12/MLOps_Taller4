@@ -46,16 +46,16 @@ async def load_model():
         os.environ["AWS_SECRET_ACCESS_KEY"] = os.getenv("AWS_SECRET_ACCESS_KEY", "supersecret")
 
         # 🔹 Tracking server de MLflow
-        mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5003"))
+        mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5005"))
 
         # 🔹 Cargar modelo desde el Registry
-        MODEL_NAME = "lucio_model3"
+        MODEL_NAME = "reg_logistica"
         MODEL_STAGE = "Production"   # o "Staging", o "1" para versión específica
         model_uri = f"models:/{MODEL_NAME}/{MODEL_STAGE}"
 
         model = mlflow.pyfunc.load_model(model_uri)
 
-        logger.info(f"✅ Modelo {MODEL_NAME} ({MODEL_STAGE}) cargado exitosamente desde MLflow Registry")
+        logger.info(f" Modelo {MODEL_NAME} ({MODEL_STAGE}) cargado exitosamente desde MLflow Registry")
         logger.info(f"Tipo de modelo: {type(model)}")
 
         # Verificar con predicción dummy
