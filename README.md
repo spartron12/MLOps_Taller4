@@ -263,71 +263,42 @@ python -m mlflow server \
 ## 9. inferencia en FastAPI una vez creado el modelo
 ![Inicio del sistema](./Imagenes/Inferencia_fastapi.png)
 
-### funciones.py - Lógica del Pipeline
+### funciones notebook - Lógica del Pipeline
 
 ```python
-def insert_data():
-    """Inserta datos de Palmer Penguins en MySQL"""
-    # Carga dataset Palmer Penguins
-    # Limpia valores nulos y NaN
-    # Inserta registros en tabla MySQL `penguins_raw`
 
-def clean(df):
-    """Limpia y transforma los datos"""
-    # Elimina registros con valores nulos
-    # Aplica One-Hot Encoding para variables categóricas (island, sex)
-    # Convierte columnas booleanas a enteros
-    # Transforma species a valores numéricos (1=Adelie, 2=Chinstrap, 3=Gentoo)
-    # Retorna DataFrame listo para almacenar en `penguins_clean`
+#Crea las tablas en MySQL
 
-def read_data():
-    """Lee y procesa datos desde MySQL"""
-    # Extrae registros desde tabla `penguins_raw`
-    # Aplica limpieza y codificación con `clean()`
-    # Inserta datos transformados en tabla `penguins_clean`
+import MySQLdb   # mysqlclient se importa como MySQLdb
 
-def train_model():
-    """Entrena y guarda un modelo de Regresión Logística"""
-    # Carga datos desde tabla `penguins_clean`
-    # Divide dataset en entrenamiento y prueba
-    # Entrena modelo de clasificación
-    # Evalúa desempeño con métricas (accuracy, confusion matrix, classification report)
-    # Guarda modelo en `/opt/airflow/models/RegresionLogistica.pkl`
+connection = MySQLdb.connect(
+    host="mysql",          # nombre del servicio en docker-compose
+    user="my_app_user",
+    passwd="my_app_pass",  # OJO: aquí se usa 'passwd' en lugar de 'password'
+    db="my_app_db",
+    port=3306
+)
 
-def start_fastapi_server():
-    """Prepara entorno FastAPI para servir el modelo"""
-    # Verifica existencia del modelo entrenado
-    # Configura aplicación FastAPI ubicada en `/opt/airflow/dags/fastapi_app.py`
-    # Genera archivo de estado `fastapi_ready.txt`
-    # Sugiere comando de despliegue con uvicorn
+cursor = connection.cursor()
 
-```
+# Ejecutar tus queries
+cursor.execute("DROP TABLE IF EXISTS penguins_raw;")
+cursor.execute("""
+CREATE TABLE penguins_raw (
+    species VARCHAR(50) NULL,
+    island VARCHAR(50) NULL,
+    bill_length_mm DOUBLE NULL,
+    bill_depth_mm DOUBLE NULL,
+    flipper_length_mm DOUBLE NULL,
+    body_mass_g DOUBLE NULL,
+    sex VARCHAR(10) NULL,
+    year INT NULL
+);
+""")
 
-### queries.py - Consultas SQL
-
-```sql
-DROP_PENGUINS_TABLE = """
-DROP TABLE IF EXISTS penguins_raw;
-"""
-
-DROP_PENGUINS_CLEAN_TABLE = """
-DROP TABLE IF EXISTS penguins_clean;            
- """
-
-
-CREATE_PENGUINS_TABLE_RAW = """ CREATE TABLE penguins_raw (
-            species VARCHAR(50) NULL,
-            island VARCHAR(50) NULL,
-            bill_length_mm DOUBLE NULL,
-            bill_depth_mm DOUBLE NULL,
-            flipper_length_mm DOUBLE NULL,
-            body_mass_g DOUBLE NULL,
-            sex VARCHAR(10) NULL,
-            year INT NULL
-        )
-        """
-
-CREATE_PENGUINS_TABLE_CLEAN = """ CREATE TABLE penguins_clean (
+cursor.execute("DROP TABLE IF EXISTS penguins_clean;")
+cursor.execute("""
+CREATE TABLE penguins_clean (
     species INT NULL,
     bill_length_mm DOUBLE NULL,
     bill_depth_mm DOUBLE NULL,
@@ -339,9 +310,13 @@ CREATE_PENGUINS_TABLE_CLEAN = """ CREATE TABLE penguins_clean (
     island_Torgersen INT NULL,
     sex_female INT NULL,
     sex_male INT NULL
-        );      
-        """
-"""
+);
+""")
+
+
+connection.commit()
+connection.close()
+ 
 
 ```
 
