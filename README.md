@@ -102,33 +102,17 @@ MySQLdb.connect(
     port=3306
 ````
 
-* Permite conexión directa de **MySqlHook** y **MySqlOperator**
-* Evita hardcodear credenciales en el código
 
-### FileSensor
+### Conexción de FastAPI con Mlflow
 
 ```yaml
-AIRFLOW_CONN_FS_DEFAULT: 'fs:///'
+# Tracking server de MLflow
+        mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5005"))
 ```
 
-* Usada por **FileSensor** para monitorear archivos del sistema
-* Útil para pipelines basados en llegada de archivos
+* Genera la conexión directa entre ambos servicios para poder generar la inferencia desde fastAPI tomando los modelos que vayamos desplegando en producción desde Mlflow
+  
 
-
-#### DAG Modificado - orquestador.py
-
-**Configuración para auto-activación:**
-```python
-with DAG(
-    dag_id="orquestador",
-    schedule_interval=None,          # Ejecución controlada automáticamente
-    catchup=False,
-    is_paused_upon_creation=False,   # CLAVE: DAG activo desde creación
-    tags=['ml', 'penguins', 'auto-execution']
-) as dag:
-```
-
-**Función:** Garantiza que el DAG esté listo para ejecución automática.
 
 
 ## Flujo del Pipeline Automatizado
