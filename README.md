@@ -76,19 +76,7 @@ MLOps_Taller4/
 # Variables de entorno clave para la conexión de mlflow y fastapi
 - MLFLOW_TRACKING_URI
 
-**Función:** Elimina la necesidad de configuración manual de credenciales.
-
-#### docker-compose.yaml - Orquestación Automática
-
-**Características de automatización implementadas:**
-
-```yaml
-# DAGs activos por defecto (sin intervención manual)
-AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
-
-# Detección rápida de cambios en DAGs
-AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: 30
-AIRFLOW__SCHEDULER__PARSING_PROCESSES: 2
+**Función:** realiza la conexión entre FastAPI y Mlflow.
 ```
 
 **Servicio de despligue Mlflow:**
@@ -104,9 +92,14 @@ AIRFLOW__SCHEDULER__PARSING_PROCESSES: 2
 
 ## Conexiones Configuradas
 
-###  MySQL
+###  MySQL - Conexión entre Jupyter y MySQL mediante la librería MySQLdb
 ```yaml
-AIRFLOW_CONN_MYSQL_CONN: 'mysql://my_app_user:my_app_pass@mysql:3306/my_app_db'
+MySQLdb.connect(
+    host="mysql",          
+    user="my_app_user",
+    passwd="my_app_pass",  
+    db="my_app_db",
+    port=3306
 ````
 
 * Permite conexión directa de **MySqlHook** y **MySqlOperator**
