@@ -1,4 +1,4 @@
-#!/home/estudiante/Taller4/venv/bin/python3
+#!/home/estudiante/talleres/Mlflow/MLOps_Taller4/venv/bin/python3
 
 import sys
 import json

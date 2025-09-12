@@ -1,4 +1,4 @@
-#!/home/estudiante/Taller4/venv/bin/python3
+#!/home/estudiante/talleres/Mlflow/MLOps_Taller4/venv/bin/python3
 
 # $Id: rst2xml.py 8927 2022-01-03 23:50:05Z milde $
 # Author: David Goodger <goodger@python.org>

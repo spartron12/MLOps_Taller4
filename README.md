@@ -1,125 +1,416 @@
-# mlflow 
-MLflow es una plataforma de código abierto para administrar el ciclo de vida completo del aprendizaje automático. Tiene los siguientes componentes principales: Seguimiento: Permite realizar un seguimiento de los experimentos para registrar y comparar parámetros y resultados
+# MLOps Taller 3 - Pipeline Automatizado con Airflow
 
+**Grupo compuesto por Sebastian Rodríguez y David Córdova**
 
-Para el uso de esta plataforma partimos de una instancia de maquina virtual. Esta maquina soportara la plataforma y todos los componentes necesarios para su funcionamiento. En este repositorio encontrara una arquitectura de funcionamiento especifica y se le propondrán modificaciones para que se familiarice con la configuración de este tipo de sistemas, no solo con su uso.
+Este proyecto implementa un pipeline completo de Machine Learning Operations (MLOps) que automatiza desde la limpieza de datos hasta el entrenamiento de modelos y despliegue de API, utilizando Apache Airflow como orquestador principal.
 
-Para soportar mlflow, en este caso se configurara un servicio usando `systemd` mediante un archivo de configuración `mlflow_serv.service` el cual contendrá todo lo necesario para el funcionamiento de la plataforma, sin embargo, existen componentes de registro adicionales que si bien, se enlazan a este sistema, son externos. Para los metadatos se usa el método mas sencillo posible usar una base de datos SQLite. Mientras que para los artefactos, se usara un bucket s3.
+## Características Principales
 
-En este ejemplo se establecen 3 servicios dentro de la misma máquina virtual pero sin conexión entre ellos. El primero un contenedor mediante un dockerfile que disponibiliza un servicio de JupyerLab en donde se realizará la experimentación. El segundo un almacen de objetos, usando minio, mediante un docker-compose (estos dos conetenedores no tienen conexión por docker-network) y finalmente un servidor de mlflow, en el diagrama se hará enfasis en los componentes de model registry y server tracking que son servidores de servicio independientes, así como una base de datos sqlite representada en un archivo (este servicio es solo por practicidad en us esenario real se debe disponer una base de datos para este fin).
+- Pipeline completamente automatizado con ejecución sin intervención manual
+- Orquestación inteligente del flujo de trabajo con Apache Airflow
+- Contenerización completa mediante Docker Compose
+- Base de datos MySQL para almacenamiento persistente
+- API FastAPI para servicio de predicciones en tiempo real
+- Auto-trigger del DAG con activación automática al iniciar
+- Dashboard web de Airflow para monitoreo en tiempo real
 
-<span style="display:block;text-align:center">![mlflow_class_explanation](mlflow_class_explanation.png)</span>
-
-Esta configuración busca simular un escenario en la nube, en donde no tienen comunicación directa estos servicios, por lo tanto la comunicación se debe realizar mediante sus puertos expuestos a internet, uno por cada servicio. 
-
-## Artefactos de mlflow usando minio
-
-mlflow requiere almacenamiento de artefactos, para esto es necesario un sistema de almacenamiento de archivos, en este caso usaremos la configuración existente para los bucket s3. No es necesario usar los servicios de AWS, se usara la imagen de contenedor de **minio**, en este ejemplo se proporciona docker-compose.yaml para iniciar este contenedor. Utilice el siguiente comando para iniciar minio:
-
-    docker compose up -d
-
-Cuando este lista la instancia, ingrese al puerto 9001 de su maquina, ingrese usuario y contraseña descritos en el docker-compose.yaml. Dentro de esta herramienta cree un nuevo bucket este permitirá almacenar todos los artefactos de mlflow. Este servicio separa UI en puerto 9001 y API en 9000.
-
-## Instalación de mlflow
-la instalación de mlflow en este escenario requiere `awscli` y `boto3` para realizar la conexión al bucket de s3, en este caso configurado usando la imagen de minio.
+## Estructura del Proyecto
 
 ```
-pip install mlflow awscli boto3
+MLOps_Taller3/
+├── dags/
+│   ├── scripts/
+│   │   ├── __pycache__/
+│   │   ├── __init__.py
+│   │   ├── funciones.py
+│   │   └── queries.py
+│   ├── fastapi_ready.txt
+│   ├── fastapi.log
+│   └── orquestador.py
+├── fastapi/
+│   ├── __pycache__/
+│   ├── Dockerfile
+│   ├── main.py
+│   └── requirements.txt
+├── logs/
+├── models/
+├── plugins/
+├── images/
+├── .env
+├── docker-compose.yaml
+└── README.md
 ```
 
-## Start mlflow server
+### Descripción de Componentes
 
-Una vez instalado mlflow, es cuestión de iniciar el servidor con la siguiente instrucción.
+- **dags/**:
+  - **orquestador.py**: DAG principal de Airflow que automatiza todo el pipeline de Machine Learning
+  - **scripts/funciones.py**: Funciones principales del pipeline (insert_data,clean, read_data, train_model)
+  - **scripts/queries.py**: Consultas SQL para creación y manipulación de tablas en MySQL
+  - **fastapi_ready.txt**: Archivo de señal para indicar que FastAPI está listo
+  - **fastapi.log**: Logs del servicio FastAPI
+
+- **fastapi/**:
+  - **main.py**: Aplicación principal de FastAPI que consume los modelos entrenados
+  - **Dockerfile**: Contenerización del servicio API
+  - **requirements.txt**: Dependencias específicas para el servicio FastAPI
+
+- **models/**:
+  - Carpeta compartida que almacena los modelos entrenados en formato pickle (.pkl)
+  - Es montada como volumen en todos los contenedores que necesitan acceso a los modelos
+  - Contiene archivos como: `RegresionLogistica.pkl`
+
+- **logs/**: Directorio donde Airflow almacena todos los logs de ejecución de tareas y DAGs
+- **plugins/**: Directorio para plugins personalizados de Airflow (vacío por defecto)
+- **images/**: Carpeta para almacenar capturas de pantalla y evidencias del funcionamiento
+
+- **.env**: 
+  - Archivo de variables de entorno que configura automáticamente las credenciales de Airflow
+  - Elimina la necesidad de configuración manual con credenciales predeterminadas (admin/admin)
+
+- **docker-compose.yaml**:
+  - Archivo de orquestación que define y gestiona todos los contenedores del proyecto
+  - Incluye servicios para: Airflow (webserver, scheduler, worker, triggerer), MySQL, Redis, PostgreSQL, FastAPI
+  - Contiene el servicio `dag-auto-trigger` que ejecuta automáticamente el pipeline después del inicio
+
+
+
+## Automatización Implementada
+
+### ¿Por qué se automatizó?
+
+**Problema original:**
+- Requería login manual en Airflow (`admin`/`admin`)
+- Necesitaba activar DAGs manualmente
+- Requería trigger manual del pipeline
+- Intervención humana en múltiples pasos
+
+**Solución automatizada:**
+- Zero-touch deployment - Una sola ejecución automatiza todo
+- Auto-activación de DAGs - Se activan automáticamente al iniciar
+- Auto-trigger del pipeline - Se ejecuta automáticamente una vez
+- Credenciales simplificadas - Admin/admin predeterminado
+
+### Componentes de Automatización
+
+#### Archivo .env - Configuración Automática
 
 ```bash
-mlflow server \
---backend-store-uri sqlite:////home/estudiante/MLOPS_PUJ/Niveles/2/mlflow/mlflow.db \
---default-artifact-root s3://mlflows3/artifacts \
---host 0.0.0.0 \
---serve-artifacts
+# Variables de entorno para automatización
+AIRFLOW_UID=50000
+_AIRFLOW_WWW_USER_USERNAME=admin
+_AIRFLOW_WWW_USER_PASSWORD=admin
+AIRFLOW_PROJ_DIR=.
 ```
 
- En donde, `--backend-store-uri` nos permite definir el lugar de almacenamiento de los metadatos de mlflow, asi como sus referencias a artefactos, el parametro `sqlite:////home/profesor/MLOPS/MLOPS_PUJ/mlflow/mlflow.db` corresponde al la ubicación del la base de datos SQLite, en caso de usar una base de datos diferente se deben pasar las credenciales para su suo. 
+**Función:** Elimina la necesidad de configuración manual de credenciales.
 
-Para el almacenamiento de artefactos usaremos el bucket de s3 instanciado anteriormente, indicandolo mediante `--default-artifact-root`, el parametro `s3://mlflows3/artifacts` indica que se realizara la conexión a un bucket de s3, el cual tiene por nombre **mlflows3** y se usara la carpeta **artifacts** para registro. Para garantizar la visibilidad de los artefactos se agrega `--serve-artifacts`. Por ultimo, para poder acceder a nuestra plataforma, especificamos `--host 0.0.0.0`, por defecto se asigna el puerto 5000.
+#### docker-compose.yaml - Orquestación Automática
 
-Si se desea el mantener el sistema funcionando, se puede hacer mediante `systemd`, configurando un servicio de Linux.
-Debe crear el servicio con el archivo mlflow_serv.service que contiene lo siguiente.
+**Características de automatización implementadas:**
 
-```ini
-[Unit]
-Description=MLflow tracking server
-After=network.target 
+```yaml
+# DAGs activos por defecto (sin intervención manual)
+AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'false'
 
-[Service]
-User=estudiante
-Restart=on-failure
-RestartSec=3
-WorkingDirectory=/home/estudiante/MLOPS_PUJ/Niveles/2/mlflow/
-Environment=MLFLOW_S3_ENDPOINT_URL=http://10.43.101.149:9000
-Environment=AWS_ACCESS_KEY_ID=admin
-Environment=AWS_SECRET_ACCESS_KEY=supersecret
-ExecStart= python3 -m mlflow server \
---backend-store-uri sqlite:////home/estudiante/MLOPS_PUJ/Niveles/2/mlflow/mlflow.db \
---default-artifact-root s3://mlflows3/artifacts \
---host 0.0.0.0 \
---serve-artifacts
-
-[Install]
-WantedBy=multi-user.target
+# Detección rápida de cambios en DAGs
+AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL: 30
+AIRFLOW__SCHEDULER__PARSING_PROCESSES: 2
 ```
 
-Las variables de entorno definidas, permiten: `MLFLOW_S3_ENDPOINT_URL` establecer conexion al bucket creado. `AWS_ACCESS_KEY_ID` asignar usuario de minio y `AWS_SECRET_ACCESS_KEY` la contrasena. Estas variables hacen referencia a servicios de AWS pues estan disenadas para esto, sin embargo, no usaremos mas que el api oficial boto3 para acceder.
+**Servicio de Auto-Trigger integrado:**
+```yaml
+dag-auto-trigger:
+  command: >
+    bash -c "
+      echo 'Iniciando auto-trigger del DAG...'
+      sleep 120
+      echo 'Activando DAG orquestador...'
+      airflow dags unpause orquestador || echo 'DAG ya está activo'
+      echo 'Disparando ejecución del DAG...'
+      airflow dags trigger orquestador
+      echo 'DAG disparado exitosamente!'
+    "
+```
 
-## configuración systemd service
-Una vez creado el archivo, habilite el servicio, lo primero es recargar los daemon antes de realizar un cambio ejecutando
+**Función:** Ejecuta automáticamente el pipeline 2 minutos después del inicio completo.
+
+
+## Conexiones Configuradas
+
+###  MySQL
+```yaml
+AIRFLOW_CONN_MYSQL_CONN: 'mysql://my_app_user:my_app_pass@mysql:3306/my_app_db'
+````
+
+* Permite conexión directa de **MySqlHook** y **MySqlOperator**
+* Evita hardcodear credenciales en el código
+
+### FileSensor
+
+```yaml
+AIRFLOW_CONN_FS_DEFAULT: 'fs:///'
+```
+
+* Usada por **FileSensor** para monitorear archivos del sistema
+* Útil para pipelines basados en llegada de archivos
+
+
+#### DAG Modificado - orquestador.py
+
+**Configuración para auto-activación:**
+```python
+with DAG(
+    dag_id="orquestador",
+    schedule_interval=None,          # Ejecución controlada automáticamente
+    catchup=False,
+    is_paused_upon_creation=False,   # CLAVE: DAG activo desde creación
+    tags=['ml', 'penguins', 'auto-execution']
+) as dag:
+```
+
+**Función:** Garantiza que el DAG esté listo para ejecución automática.
+
+
+## Flujo del Pipeline Automatizado
+
+### Secuencia de Ejecución Automática:
+
+1. docker compose up
+2. Servicios iniciando (MySQL + Redis + PostgreSQL)
+3. Airflow Webserver + Scheduler
+4. DAG auto-activo
+5. Auto-trigger después de 120 segundos
+6. Pipeline ML ejecutándose automáticamente
+
+
+## DAG Orquestador (`orquestador.py`)
+
+Este DAG orquesta todo el flujo de **ETL + entrenamiento de modelo** de pingüinos:
+
+1. **Preparación de la base de datos**
+   - Elimina tablas previas (`penguins_raw` y `penguins_clean`) si existen.
+   - Crea las tablas necesarias para datos crudos y limpios.
+
+2. **Carga y limpieza de datos**
+   - Inserta datos de pingüinos en la tabla `penguins_raw`.
+   - Limpia y transforma los datos (One-Hot Encoding, manejo de NaN) y los inserta en `penguins_clean`.
+
+3. **Entrenamiento del modelo**
+   - Usa los datos limpios para entrenar un modelo de **Regresión Logística**.
+   - Guarda el modelo entrenado en `/opt/airflow/models/RegresionLogistica.pkl`.
+
+4. **Validación del modelo**
+   - Un `FileSensor` verifica que el archivo del modelo exista antes de finalizar el pipeline.
+
+
+### Resumen del flujo
+
+```
+delete_table + delete_table_clean
+         ↓
+  create_table_raw
+         ↓
+ create_table_clean
+         ↓
+   insert_data
+         ↓
+    read_data
+         ↓
+   train_model
+         ↓
+wait_for_model_file (FileSensor)
+```
+
+
+**Resultado final:**  
+Se obtiene un modelo de clasificación entrenado y validado automáticamente, listo para ser consumido desde FastAPI.
+
+
+## Instrucciones de Ejecución
+
+### Preparación Inicial
 
 ```bash
-sudo systemctl daemon-reload 
+# Clonar el repositorio
+git clone https://github.com/DAVID316CORDOVA/MLOps_Taller3.git
+cd MLOps_Taller3
+
+# Limpiar entorno previo (si existe)
+docker compose down -v
+docker system prune -f
 ```
 
-Ahora sí, habilite y valide el servicio
+### Ejecución Completamente Automática (Recomendado)
 
 ```bash
-sudo systemctl enable /home/estudiante/MLOPS_PUJ/Niveles/2/mlflow/mlflow_serv.service
+# Después de la preparación inicial, simplemente:
+docker compose up
 ```
+
+**Qué sucede automáticamente:**
+- Se crean todos los contenedores necesarios
+- Airflow inicia con credenciales admin/admin
+- DAG se activa automáticamente
+- Pipeline se ejecuta una vez automáticamente después de 2 minutos
+- FastAPI queda disponible con modelo entrenado
+
+### Ejecución en Background
 
 ```bash
-sudo systemctl start mlflow_serv.service 
+# Para ejecutar en segundo plano
+docker compose up -d
+
+# Ver logs en tiempo real
+docker compose logs -f dag-auto-trigger
 ```
-Verifique que el servicio funciona adecuadamente
+
+### Verificación Manual del Estado
 
 ```bash
-sudo systemctl status mlflow_serv.service 
+# Verificar que Airflow esté disponible
+curl -f http://localhost:8080/health
+
+# Verificar estado de contenedores
+docker compose ps
+
+# Acceder a la interfaz web
+# http://localhost:8080 (admin/admin)
 ```
 
-## JupyterLab usando Dockerfile
+## Acceso a Servicios
 
-Para aislar la ejecución de la plataforma, de la ejecución código de machine learning crearemos una imagen de contenedor y lo usaremos para desplegar Jupyter notebook que contiene ejemplos para el uso de mlflow. Para esto se definió un `Dockerfile` y un `requirements.txt`.
+| Servicio | URL | Credenciales | Descripción |
+|----------|-----|--------------|-------------|
+| **Airflow Web** | http://localhost:8080 | admin/admin | Dashboard del pipeline |
+| **FastAPI Docs** | http://localhost:8000/docs | - | API de predicciones |
+| **MySQL** | localhost:3306 | my_app_user/my_app_pass | Base de datos |
+| **Flower (opcional)** | http://localhost:5555 | - | Monitor de Celery |
 
-```bash
-docker build -t jupyterlab .
+## Ejecución del Proyecto
+
+### 1. Levantamiento de la aplicación
+![Inicio del sistema](./images/compose.jpg)
+
+### 2. Login de Airflow
+![Inicio del sistema](./images/login.jpg)
+
+### 3. Ejecución Automática del Pipeline - DAG Auto-Activo
+![Inicio del sistema](./images/dag.jpg)
+
+## 4. Visualización todos los tasks de Airflow ejecutándose automaticamente
+![Inicio del sistema](./images/orquesta.jpg)
+
+## 5. Visualización del correcto funcionamiento de la interfaz gráfica de FASTAPI 
+![Inicio del sistema](./images/fastapi.jpg)
+
+
+## 6. Predicción usando el modelo generado automáticamente por AirFlow
+![Inicio del sistema](./images/fastapi_prediction.jpg)
+
+## Funciones Técnicas Implementadas
+
+### funciones.py - Lógica del Pipeline
+
+```python
+def insert_data():
+    """Inserta datos de Palmer Penguins en MySQL"""
+    # Carga dataset Palmer Penguins
+    # Limpia valores nulos y NaN
+    # Inserta registros en tabla MySQL `penguins_raw`
+
+def clean(df):
+    """Limpia y transforma los datos"""
+    # Elimina registros con valores nulos
+    # Aplica One-Hot Encoding para variables categóricas (island, sex)
+    # Convierte columnas booleanas a enteros
+    # Transforma species a valores numéricos (1=Adelie, 2=Chinstrap, 3=Gentoo)
+    # Retorna DataFrame listo para almacenar en `penguins_clean`
+
+def read_data():
+    """Lee y procesa datos desde MySQL"""
+    # Extrae registros desde tabla `penguins_raw`
+    # Aplica limpieza y codificación con `clean()`
+    # Inserta datos transformados en tabla `penguins_clean`
+
+def train_model():
+    """Entrena y guarda un modelo de Regresión Logística"""
+    # Carga datos desde tabla `penguins_clean`
+    # Divide dataset en entrenamiento y prueba
+    # Entrena modelo de clasificación
+    # Evalúa desempeño con métricas (accuracy, confusion matrix, classification report)
+    # Guarda modelo en `/opt/airflow/models/RegresionLogistica.pkl`
+
+def start_fastapi_server():
+    """Prepara entorno FastAPI para servir el modelo"""
+    # Verifica existencia del modelo entrenado
+    # Configura aplicación FastAPI ubicada en `/opt/airflow/dags/fastapi_app.py`
+    # Genera archivo de estado `fastapi_ready.txt`
+    # Sugiere comando de despliegue con uvicorn
+
 ```
-```bash
-docker run -it --name jupyterlab --rm -e TZ=America/Bogota -p 8888:8888 -v $PWD:/work jupyterlab:latest
+
+### queries.py - Consultas SQL
+
+```sql
+DROP_PENGUINS_TABLE = """
+DROP TABLE IF EXISTS penguins_raw;
+"""
+
+DROP_PENGUINS_CLEAN_TABLE = """
+DROP TABLE IF EXISTS penguins_clean;            
+ """
+
+
+CREATE_PENGUINS_TABLE_RAW = """ CREATE TABLE penguins_raw (
+            species VARCHAR(50) NULL,
+            island VARCHAR(50) NULL,
+            bill_length_mm DOUBLE NULL,
+            bill_depth_mm DOUBLE NULL,
+            flipper_length_mm DOUBLE NULL,
+            body_mass_g DOUBLE NULL,
+            sex VARCHAR(10) NULL,
+            year INT NULL
+        )
+        """
+
+CREATE_PENGUINS_TABLE_CLEAN = """ CREATE TABLE penguins_clean (
+    species INT NULL,
+    bill_length_mm DOUBLE NULL,
+    bill_depth_mm DOUBLE NULL,
+    flipper_length_mm DOUBLE NULL,
+    body_mass_g DOUBLE NULL,
+    year INT NULL,
+    island_Biscoe INT NULL,
+    island_Dream INT NULL,
+    island_Torgersen INT NULL,
+    sex_female INT NULL,
+    sex_male INT NULL
+        );      
+        """
+"""
+
 ```
 
-## Taller MLflow
 
-- Cree al menos una instancia de una base de datos
 
-- Cree una instancia de MLflow (no use sqlite)
+## Conclusiones
 
-- Cree una instancia de MINio
+Este proyecto implementa un pipeline MLOps completamente automatizado que:
 
-- Cree una instancia de JupyterLab
+- Elimina intervención manual en el proceso de entrenamiento
+- Proporciona un sistema reproducible y confiable
+- Integra todas las fases del ciclo de vida del modelo
+- Ofrece monitoreo y trazabilidad completa
+- Reduce significativamente el tiempo de despliegue
 
-    Cree un notebook que permita realizar entrenamiento de un modelo, realize multiples ejecuciones a modo de experimentacion (al menos 20, con variaciones de hyperparámetros), todo debe estar registrado en MLflow.
+La automatización establecida proporciona una base sólida para operaciones de Machine Learning en producción, minimizando errores humanos y maximizando la eficiencia operacional.
 
-    Los datos deben existir en una base de datos, los datos procesados deben estar en base de datos.
+---
 
-    Los modelos deben estar registrados en MLflow
+**Desarrollado por:**
+- Sebastian Rodríguez  
+- David Córdova
 
-- Cree API que permita realizar inferencia al modelo entrenado, tomando el modelo **mediante** MLflow
-
-Use la misma estructura definida en este archivo README.
+**Proyecto:** MLOps Taller 3 - Pipeline Automatizado  
+**Fecha:** Septiembre 2025

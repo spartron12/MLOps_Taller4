@@ -16,4 +16,5 @@ mysqlclient
 fastapi
 uvicorn
 pydantic
+mysqlclient
 

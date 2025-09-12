@@ -1,4 +1,4 @@
-#!/home/estudiante/Taller4/venv/bin/python3
+#!/home/estudiante/talleres/Mlflow/MLOps_Taller4/venv/bin/python3
 
 # $Id: rst2latex.py 8956 2022-01-20 10:11:44Z milde $
 # Author: David Goodger <goodger@python.org>
