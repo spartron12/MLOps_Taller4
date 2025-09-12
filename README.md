@@ -109,7 +109,7 @@ MySQLdb.connect(
 # Tracking server de MLflow
         mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5005"))
 ```
-
+* Genera la conexión directa entre ambos servicios para poder generar la inferencia desde fastAPI tomando los modelos que vayamos desplegando en producción desde Mlflow
 ### Despliegue de Mlflow con backend en Postgres
 
 ```yaml
@@ -117,26 +117,23 @@ MySQLdb.connect(
 --backend-store-uri postgresql://mlflow_user:mlflow_password@localhost:5432/mlflow_db\
 ```
 
-* Genera la conexión directa entre ambos servicios para poder generar la inferencia desde fastAPI tomando los modelos que vayamos desplegando en producción desde Mlflow
-  
 
 
+## Flujo del Pipeline
 
-## Flujo del Pipeline Automatizado
-
-### Secuencia de Ejecución Automática:
+### Secuencia de Ejecución:
 
 1. docker compose up
-2. Servicios iniciando (MySQL + Redis + PostgreSQL)
-3. Airflow Webserver + Scheduler
-4. DAG auto-activo
-5. Auto-trigger después de 120 segundos
-6. Pipeline ML ejecutándose automáticamente
+2. Servicios iniciando (Minio + mysql + Postgres + Jupyter + Fastapi )
+3. Mlflow en entorno virtual
+4. Correr el notebook principal en Jupyter
+5. Validar experimentos y modelos en Mlflow
+6. Realizar inferencia en Mlflow
 
 
-## DAG Orquestador (`orquestador.py`)
+## Explicación Notebook (ejecucion.ipynb)
 
-Este DAG orquesta todo el flujo de **ETL + entrenamiento de modelo** de pingüinos:
+Este notebook tiene todo el flujo correspondiente a la ingesta de información, entrenamiento, experimentos y paso a producción del modelo
 
 1. **Preparación de la base de datos**
    - Elimina tablas previas (`penguins_raw` y `penguins_clean`) si existen.
@@ -146,12 +143,12 @@ Este DAG orquesta todo el flujo de **ETL + entrenamiento de modelo** de pingüin
    - Inserta datos de pingüinos en la tabla `penguins_raw`.
    - Limpia y transforma los datos (One-Hot Encoding, manejo de NaN) y los inserta en `penguins_clean`.
 
-3. **Entrenamiento del modelo**
-   - Usa los datos limpios para entrenar un modelo de **Regresión Logística**.
-   - Guarda el modelo entrenado en `/opt/airflow/models/RegresionLogistica.pkl`.
+3. **generación de experimentos**
+   - Usa los datos limpios para generar múltiples experimentos con diferentes experimentos
+   - Guarda todos los logs en Mlflow junto con los modelos 
 
-4. **Validación del modelo**
-   - Un `FileSensor` verifica que el archivo del modelo exista antes de finalizar el pipeline.
+4. **Paso a producción del modelo seleccionado**
+   - Se ejecuta un comando para que Mlflow ponga el modelo seleccionado en producción y pueda ser consumido por la API
 
 
 ### Resumen del flujo
@@ -167,9 +164,10 @@ delete_table + delete_table_clean
          ↓
     read_data
          ↓
-   train_model
+   Experiments
          ↓
-wait_for_model_file (FileSensor)
+    production_model
+
 ```
 
 
@@ -183,27 +181,42 @@ Se obtiene un modelo de clasificación entrenado y validado automáticamente, li
 
 ```bash
 # Clonar el repositorio
-git clone https://github.com/DAVID316CORDOVA/MLOps_Taller3.git
-cd MLOps_Taller3
+git clone (https://github.com/spartron12/MLOps_Taller4)
+cd MLOps_Taller4
 
 # Limpiar entorno previo (si existe)
 docker compose down -v
 docker system prune -f
 ```
 
-### Ejecución Completamente Automática (Recomendado)
+### Ejecución 
 
 ```bash
 # Después de la preparación inicial, simplemente:
 docker compose up
 ```
+```bash
+# Generar el entorno virtual junto con las librerías necesarias para ejecutar Mlflow:
+python3 -m venv venv
+pip install mlflow awscli boto3 psycopg2-binary
+```
+```bash
+# Generar el entorno virtual junto con las librerías necesarias para ejecutar Mlflow:
+python3 -m venv venv
+pip install mlflow awscli boto3 psycopg2-binary
+python -m mlflow server \
+  --backend-store-uri postgresql://mlflow_user:mlflow_password@localhost:5432/mlflow_db \
+  --default-artifact-root s3://mlflows3/artifacts \
+  --host 0.0.0.0 --port 5005 --serve-artifacts
+    "
+```
 
-**Qué sucede automáticamente:**
+
+**Qué sucede**
 - Se crean todos los contenedores necesarios
-- Airflow inicia con credenciales admin/admin
-- DAG se activa automáticamente
-- Pipeline se ejecuta una vez automáticamente después de 2 minutos
-- FastAPI queda disponible con modelo entrenado
+- Se despliega una instancia en Jupyter en donde debemos ejecutar el notebook 
+- Se guardan los modelos en Mlflow
+- La API consume los modelos para hacer la inferencia
 
 ### Ejecución en Background
 
@@ -232,10 +245,13 @@ docker compose ps
 
 | Servicio | URL | Credenciales | Descripción |
 |----------|-----|--------------|-------------|
-| **Airflow Web** | http://localhost:8080 | admin/admin | Dashboard del pipeline |
+| **Mlflow Web** | http://localhost:5005 | admin/admin | Dashboard del pipeline |
 | **FastAPI Docs** | http://localhost:8000/docs | - | API de predicciones |
 | **MySQL** | localhost:3306 | my_app_user/my_app_pass | Base de datos |
-| **Flower (opcional)** | http://localhost:5555 | - | Monitor de Celery |
+| **Jupyter** | http://localhost:8888 | - | Jupyter Notebook |
+| **Postgres** | http://localhost:5432 | mlflow_user:mlflow_password | Postgres|
+| **Minio** | http://localhost:9000 | admin:supersecret | Postgres|
+
 
 ## Ejecución del Proyecto
 
