@@ -6,13 +6,17 @@ Este proyecto implementa múltiples servicios con el fin de lograr desplegar una
 
 ## Características Principales
 
-- Conexión total entre los servicios
-- Creación de modelos y experimentos por medio de Jupyter y trazabilidad en Mlflow
-- Contenerización completa mediante Docker Compose
-- Base de datos MySQL para almacenamiento persistente
-- API FastAPI para servicio de predicciones en tiempo real
-- Despliegue web de MlFlow para validar parametría de los modelos y experimentos desplegados
-- Conexión directa de FastAPI con MLFlow
+- **Arquitectura híbrida MLOps**: MLFlow server en host con infraestructura de soporte containerizada
+- **Pipeline completo de ML**: Desde ingesta de datos hasta inferencia en producción con trazabilidad completa
+- **Storage multi-capa especializado**:
+  - Postgres para metadata de experimentos y modelos MLFlow
+  - MySQL para datasets de entrenamiento y aplicación
+  - MinIO como S3-compatible para artefactos (modelos, plots, logs)
+- **Contenerización orquestada**: Docker Compose gestiona toda la infraestructura de servicios
+- **Entorno integrado de desarrollo**: Jupyter con conectividad directa a todas las fuentes de datos
+- **API de producción**: FastAPI consume modelos directamente desde MLFlow Registry
+- **Tracking y versionado automático**: Experimentos, métricas y modelos registrados automáticamente
+- **Configuración S3 local**: MinIO simula AWS S3 para desarrollo y testing
 
 ## Estructura del Proyecto
 
@@ -38,21 +42,51 @@ MLOps_Taller4/
 ### Descripción de Componentes
 
 
+**Estructura de servicios:**
+
 - **fastapi/**:
-  - **main.py**: Aplicación principal de FastAPI que consume los modelos entrenados
-  - **Dockerfile**: Contenerización del servicio API
-  - **requirements.txt**: Dependencias específicas para el servicio FastAPI
+  - **main.py**: API REST que consume modelos registrados en MLFlow para inferencia
+  - **Dockerfile**: Containerización con dependencias ML y conexión a MLFlow
+  - **requirements.txt**: Librerías específicas para servicio de predicciones
 
 - **minio/**:
-  - Carpeta compartida que almacena los artefectos creados desde Jupyter y que son visibles en Mlflow
+  - **Función**: Volume mount para almacenamiento persistente de artefactos MLFlow
+  - **Contenido**: Modelos serializados, plots, logs y metadata de experimentos
+  - **Acceso**: S3-compatible storage accesible desde Jupyter y MLFlow server
+
 - **venv/**:
-  - ambiente virtual en donde se instalaron las librerías necesarias para poder desplegar Mlflow
-- **work/**: Directorio donde almacenamos notebooks y que sean visibles cuando se despliegue la instancia de Jupyter
-- **images/**: Carpeta para almacenar capturas de pantalla y evidencias del funcionamiento
+  - **Propósito**: Ambiente virtual Python para MLFlow server en host
+  - **Librerías**: mlflow, awscli, boto3, psycopg2-binary para conexiones completas
+  - **Función**: Aislamiento de dependencias del tracking server
+
+- **work/**:
+  - **Contenido**: Notebooks Jupyter con pipeline completo de ML
+  - **Mount**: Volume compartido entre host y container Jupyter
+  - **Acceso**: Persistencia de código y resultados de experimentación
+
+- **images/**:
+  - **Propósito**: Documentación visual del proyecto
+  - **Contenido**: Screenshots de interfaces, evidencias de funcionamiento
+  - **Uso**: Soporte para README y documentación técnica
+
+**Configuración de orquestación:**
 
 - **docker-compose.yaml**:
-  - Archivo de orquestación que define y gestiona todos los contenedores del proyecto
-  - Incluye servicios para: Mlflow (minIO, MySQL, Postgres, Jupyter, FastAPI)
+  - **Servicios gestionados**: MinIO, MySQL, Postgres, Jupyter, FastAPI
+  - **Networking**: Red interna para comunicación inter-servicios
+  - **Volúmenes persistentes**: mysql_data, postgres_data para persistencia
+  - **Variables de entorno**: Configuración S3, credenciales y URIs de conexión
+  - **Dependencias**: Orden de inicio optimizado para disponibilidad de servicios
+
+**Servicios containerizados:**
+
+- **MinIO Container**: S3-compatible storage (puertos 9000/9001)
+- **MySQL Container**: Base de datos para datasets y aplicación (puerto 3306)
+- **Postgres Container**: Backend store MLFlow metadata (puerto 5432)
+- **Jupyter Container**: Entorno desarrollo ML con acceso completo a datos
+- **FastAPI Container**: API producción conectada a MLFlow registry (puerto 8000)
+
+
 
 ## Automatización Implementada
 
