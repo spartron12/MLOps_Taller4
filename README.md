@@ -88,23 +88,23 @@ MLOps_Taller4/
 
 
 
-## Automatización Implementada
+## Configuración de Infraestructura
 
-### ¿Por qué se automatizó?
+### ¿Por qué esta configuración?
 
 **Problema original:**
-- Por defecto toda la metadata de Mlflow se almacena en SQLite, de cara a despligues en producción es recomendable usar MySQL o Postgres
-- Se se debe generar adicionalmente una base de datos en donde se puedan almacenar tablas necesarias para los entrenamientos de los modelos
-- Se debe generar una conexión de FastAPI con Mlflow para poder hacer inferencia directamente una vez desplegado el modelo
+- Por defecto toda la metadata de MLflow se almacena en SQLite, inadecuado para entornos de producción
+- Se requiere una base de datos robusta para almacenar datasets de entrenamiento y tablas de aplicación
+- Necesidad de storage escalable para artefactos de ML (modelos, plots, logs)
+- FastAPI debe poder consumir modelos directamente desde MLflow Registry
 
-**Solución automatizada:**
-- Despliegue de Postgres para almacenar metadata de Mlflow 
-- Despliegue de MySQl para almacenar todas las tablas necesarias
-- Conexión automática con FastAPI para poder hacer inferencia
+**Solución implementada:**
+- **Postgres** como backend store para metadata de MLflow (experimentos, runs, modelos)
+- **MySQL** como base de datos principal para datasets y tablas de aplicación
+- **MinIO** como S3-compatible storage para artefactos de MLflow
+- **Configuración de red** que permite comunicación directa entre todos los servicios
 
-### Componentes de Automatización
-
-
+### Componentes de Configuración
 
 ```bash
 # Variables de entorno clave para la conexión de mlflow y fastapi
@@ -121,7 +121,11 @@ MLOps_Taller4/
     "
 ```
 
-**Función:** Ejecuta automáticamente el pipeline 2 minutos después del inicio completo.
+### Docker Compose maneja automáticamente:
+- Creación de redes internas
+- Montaje de volúmenes persistentes
+- Orden de dependencias entre servicios
+- Variables de entorno para cada container
 
 
 ## Conexiones Configuradas
