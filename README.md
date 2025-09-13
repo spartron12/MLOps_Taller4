@@ -11,7 +11,7 @@ Este proyecto implementa múltiples servicios con el fin de lograr desplegar una
 - Contenerización completa mediante Docker Compose
 - Base de datos MySQL para almacenamiento persistente
 - API FastAPI para servicio de predicciones en tiempo real
-- Despliegue web de MlFlow para validad parametría de los modelos y experimentos desplegados
+- Despliegue web de MlFlow para validar parametría de los modelos y experimentos desplegados
 - Conexión directa de FastAPI con MLFlow
 
 ## Estructura del Proyecto
